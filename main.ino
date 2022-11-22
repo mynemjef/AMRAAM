@@ -4,9 +4,9 @@
 #include <GY521.h>
 
 #define MPU_addr1             0x68
-#define MIN_PULSE_WIDTH_Y     275
+#define MIN_PULSE_WIDTH_Y     275 // min/max horizontal fin movement, defines loft angle
 #define MAX_PULSE_WIDTH_Y     475
-#define MIN_PULSE_WIDTH_ROLL  -25
+#define MIN_PULSE_WIDTH_ROLL  -25 // min/max stabilisation amount
 #define MAX_PULSE_WIDTH_ROLL  25
 #define FREQUENCY             60
  
@@ -16,27 +16,28 @@ Pixy2 pixy;
 float xa, ya, za, gyroRoll;
 
 int i;
-int MIN_PULSE_WIDTH_X = 225, MAX_PULSE_WIDTH_X = 375;
+int MIN_PULSE_WIDTH_X = 225, MAX_PULSE_WIDTH_X = 375; // min/max vetical fin movement (dynamic so as to offset when 2 missiles are launched)
 int lastY = 103;
 int lastX = 157;
 
 bool relStatus = false;
 bool multiLaunch = false; //set to true if 2 missiles will be launched
 bool side = false; //set to false if this is the left missile, true if it is the right one, leave false if only 1 missile is attached
+unsigned long timeOfFlight;
 
 //IDs 
 //1 - L = left, R = right, T = top, B = bottom, Rel = missile release motor; 
 //2 - R = has to be mapped in reverse, S = has to be mapped normally; 
 
-int motorL_R = 0;
-int motorR_S = 1;
-int motorT_R = 2;
-int motorB_S = 3;
-int motorRel = 4;
+#define motorL_R   0
+#define motorR_S   1
+#define motorT_R   2
+#define motorB_S   3
+#define motorRel   4
+#define laserPin   5
  
 void setup() 
 {
-  Serial.begin(115200); 
   Wire.begin();
   Wire.beginTransmission(MPU_addr1);
   Wire.write(0x6B);
@@ -45,9 +46,9 @@ void setup()
   pwm.begin();
   pwm.setPWMFreq(FREQUENCY);
   pixy.init();
-  //delay(500);
-  //pwm.setPWM(motorRel, 0, 315);
-  //delay(500);
+  pinMode(laserPin, INPUT);
+  pwm.setPWM(motorRel, 0, 315);
+  delay(400);
   if (multiLaunch) {
     if(side) {
       MIN_PULSE_WIDTH_X = 200;
@@ -100,12 +101,13 @@ void relMissile(int motorRel) {
   relStatus = true;
   pwm.setPWM(motorRel, 0, 140);
   delay(500);
-  //pwm.setPWM(motorRel, 0, 500);
+  pwm.setPWM(motorRel, 0, 500);
   delay(500);
-  //ignite
+  //short pin to ground to ignite motor
 }
+//void explode() {short pin to ground to ignite explosive}
 
-void getRickRolled(){
+void getRickRoll(){
   Wire.beginTransmission(MPU_addr1);
   Wire.write(0x3B);
   Wire.endTransmission(false);
@@ -143,5 +145,9 @@ void loop() {
     moveStraight(lastX, lastY, motorR_S, motorB_S, gyroRoll);
     moveReverse(lastX, lastY, motorL_R, motorT_R, gyroRoll);
   }
+  timeOfFlight = pulseIn(laserPin, HIGH);
+  timeOfFlight /= 10;
+  if (relStatus && timeOfFlight <= 1000) {
+    warhead ignition
+  }
 }
- 
